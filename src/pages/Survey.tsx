@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useStore } from "@/store/useStore";
-import type { Experience, Dealbreaker } from "@/types";
+import type { Experience, Dealbreaker, PlayerPreferences } from "@/types";
 import ScriptCard from "@/components/ScriptCard";
 import PlayerForm from "@/components/PlayerForm";
 import PlayerCard from "@/components/PlayerCard";
@@ -21,18 +21,13 @@ export default function Survey() {
   const handleAddPlayer = (data: {
     name: string;
     experience: Experience;
-    preferences: Record<string, number>;
+    preferences: PlayerPreferences;
     dealbreakers: Dealbreaker[];
   }) => {
     addPlayer({
       name: data.name,
       experience: data.experience,
-      preferences: {
-        logicLevel: data.preferences.logicLevel,
-        emotionLevel: data.preferences.emotionLevel,
-        horrorTolerance: data.preferences.horrorTolerance,
-        mechanicPreference: data.preferences.mechanicPreference,
-      },
+      preferences: data.preferences,
       dealbreakers: data.dealbreakers,
     });
   };

@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Plus, ArrowLeft } from "lucide-react";
 import { useStore } from "@/store/useStore";
-import { detectCarWarnings } from "@/utils/matching";
+import { detectCarWarnings, getDirectionalSuggestions } from "@/utils/matching";
 import DraggablePlayerCard from "@/components/DraggablePlayerCard";
 import DroppableCarSlot from "@/components/DroppableCarSlot";
 
@@ -18,6 +18,7 @@ export default function Matching() {
     removeCar,
     assignPlayerToCar,
     unassignPlayer,
+    swapCarScript,
   } = useStore();
 
   const sensors = useSensors(
@@ -44,6 +45,19 @@ export default function Matching() {
     return map;
   }, [cars, scripts, players]);
 
+  const carSuggestionsMap = useMemo(() => {
+    const map: Record<string, ReturnType<typeof getDirectionalSuggestions>> = {};
+    for (const car of cars) {
+      map[car.id] = getDirectionalSuggestions(
+        car,
+        players,
+        scripts,
+        selectedScriptIds
+      );
+    }
+    return map;
+  }, [cars, players, scripts, selectedScriptIds]);
+
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!active || !over) return;
@@ -54,6 +68,8 @@ export default function Matching() {
     if (overId.startsWith("car-")) {
       const carId = overId.replace("car-", "");
       assignPlayerToCar(playerId, carId);
+    } else if (overId === "unassigned-pool") {
+      unassignPlayer(playerId);
     } else {
       unassignPlayer(playerId);
     }
@@ -66,12 +82,20 @@ export default function Matching() {
           <div className="w-1/3 border-r border-white/10 flex flex-col overflow-hidden">
             <div className="shrink-0 px-4 py-3 border-b border-white/10">
               <h2 className="text-sm font-semibold text-white">散客待选池</h2>
-              <span className="text-xs text-[#9ca3af]">{unassignedPlayers.length} 人待分配</span>
+              <span className="text-xs text-[#9ca3af]">
+                {unassignedPlayers.length} 人待分配
+              </span>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+            <div
+              id="unassigned-pool"
+              className="flex-1 overflow-y-auto p-3 flex flex-col gap-2"
+            >
               {unassignedPlayers.length === 0 && (
-                <div className="text-center text-[#9ca3af] text-sm py-8">
+                <div className="text-center text-[#9ca3af]/50 text-sm py-12">
                   暂无待分配玩家
+                  <div className="text-[10px] mt-1 text-[#9ca3af]/30">
+                    请先在问答页录入玩家
+                  </div>
                 </div>
               )}
               {unassignedPlayers.map((player) => (
@@ -86,12 +110,19 @@ export default function Matching() {
                 <h2 className="text-sm font-semibold text-white">车位</h2>
                 <span className="text-xs text-[#9ca3af]">{cars.length} 个车位</span>
               </div>
+              <button
+                onClick={() => navigate("/survey")}
+                className="flex items-center gap-1 text-[11px] text-[#9ca3af] hover:text-[#d4a44c] transition-colors"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                去选剧本
+              </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4">
               {cars.length === 0 && (
                 <div className="text-center text-[#9ca3af] text-sm py-12">
-                  请先在下方选择剧本创建车位
+                  请在下方选择剧本创建车位
                 </div>
               )}
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -108,17 +139,23 @@ export default function Matching() {
                       script={script}
                       players={carPlayers}
                       warnings={carWarningsMap[car.id] ?? []}
+                      suggestions={carSuggestionsMap[car.id] ?? []}
                       onRemoveCar={removeCar}
                       onUnassignPlayer={unassignPlayer}
+                      onSwapScript={swapCarScript}
                     />
                   );
                 })}
               </div>
 
               <div className="mt-6">
-                <h3 className="text-sm font-semibold text-[#9ca3af] mb-3">创建新车位</h3>
+                <h3 className="text-sm font-semibold text-[#9ca3af] mb-3">
+                  创建新车位
+                </h3>
                 {selectedScripts.length === 0 && (
-                  <div className="text-xs text-[#9ca3af]/60">暂无已选剧本，请先在问答页选择剧本</div>
+                  <div className="text-xs text-[#9ca3af]/60">
+                    暂无已选剧本，请先在问答页选择今天可开的本子
+                  </div>
                 )}
                 <div className="flex flex-wrap gap-2">
                   {selectedScripts.map((script) => (
@@ -129,7 +166,9 @@ export default function Matching() {
                     >
                       <Plus className="h-4 w-4" />
                       <span>{script.name}</span>
-                      <span className="text-[10px] text-[#9ca3af]">{script.type}</span>
+                      <span className="text-[10px] text-[#9ca3af]">
+                        {script.type}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -150,7 +189,7 @@ export default function Matching() {
             disabled={cars.every((c) => c.playerIds.length === 0)}
             className="min-h-[44px] px-6 rounded-lg bg-[#d4a44c] text-sm font-semibold text-[#0f0f1a] hover:bg-[#d4a44c]/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            确认组车
+            确认组车 → 查看推荐
           </button>
         </footer>
       </div>

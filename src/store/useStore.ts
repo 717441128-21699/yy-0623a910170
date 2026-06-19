@@ -17,6 +17,7 @@ interface AppStore {
   removeCar: (carId: string) => void;
   assignPlayerToCar: (playerId: string, carId: string) => void;
   unassignPlayer: (playerId: string) => void;
+  swapCarScript: (carId: string, newScriptId: string) => void;
   resetAll: () => void;
 }
 
@@ -101,11 +102,16 @@ export const useStore = create<AppStore>((set, get) => ({
         players: state.players.map((p) =>
           p.id === playerId ? { ...p, assignedCarId: carId } : p
         ),
-        cars: state.cars.map((c) =>
-          c.id === carId && !c.playerIds.includes(playerId)
-            ? { ...c, playerIds: [...c.playerIds, playerId] }
-            : c
-        ),
+        cars: state.cars.map((c) => {
+          if (c.id === carId) {
+            if (c.playerIds.includes(playerId)) return c;
+            return { ...c, playerIds: [...c.playerIds, playerId] };
+          }
+          return {
+            ...c,
+            playerIds: c.playerIds.filter((pid) => pid !== playerId),
+          };
+        }),
       };
     }),
 
@@ -119,6 +125,22 @@ export const useStore = create<AppStore>((set, get) => ({
         playerIds: c.playerIds.filter((pid) => pid !== playerId),
       })),
     })),
+
+  swapCarScript: (carId, newScriptId) =>
+    set((state) => {
+      const car = state.cars.find((c) => c.id === carId);
+      const newScript = state.scripts.find((s) => s.id === newScriptId);
+      if (!car || !newScript) return state;
+      const playerCount = car.playerIds.length;
+      if (playerCount < newScript.playerRange[0] || playerCount > newScript.playerRange[1]) {
+        return state;
+      }
+      return {
+        cars: state.cars.map((c) =>
+          c.id === carId ? { ...c, scriptId: newScriptId } : c
+        ),
+      };
+    }),
 
   resetAll: () =>
     set({
